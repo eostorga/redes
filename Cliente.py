@@ -1,39 +1,42 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
- 
-# Programa Cliente
-# Fuente original de este codigo: www.pythondiario.com
-# Utilizado para fines academicos en el curso CI-1320 
 
+# Programa Cliente
 import socket
 import sys
  
-# Creando un socket TCP/IP
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# Creando el socket TCP/IP para conectarse al intermediario
+client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
  
-# Conecta el socket en el puerto cuando el servidor esté escuchando
-server_address = ('localhost', 10000)
-print >>sys.stderr, 'conectando a %s puerto %s' % server_address
-sock.connect(server_address)
+'''
+Argumentos en la linea de comandos
+python [0: cliente.py] [1: modo] [2: archivo] [3: puerto] [4: ventana] [5: timeout]
+'''
+# Obtiene el numero de puerto donde escucha el intermediario
+port_number = int(sys.argv[3])
 
-try:
-     
+# Conecta el socket en el puerto cuando el intermediario este escuchando
+interm_address = ('localhost', port_number)
+print >>sys.stderr, 'Conectando a %s en el puerto %s' % interm_address
+client_sock.connect(interm_address)
+
+try:     
     # Enviando datos
-    message = 'Este es el mensaje.  Se repitio.'
-    print >>sys.stderr, 'enviando "%s"' % message
-    sock.sendall(message)
+    with open(sys.argv[2],'r') as file_to_send:
+        message = file_to_send.read()
+    file_to_send.close()
+
+    print >>sys.stderr, 'Enviando "%s"' % message
+    client_sock.sendall(message)
  
     # Buscando respuesta
     amount_received = 0
     amount_expected = len(message)
      
     while amount_received < amount_expected:
-        data = sock.recv(19)
+        data = client_sock.recv(19)
         amount_received += len(data)
-        print >>sys.stderr, 'recibiendo "%s"' % data
+        print >>sys.stderr, 'Recibiendo "%s"' % data
  
 finally:
-    print >>sys.stderr, 'cerrando socket'
-    sock.close()
-
-
+    print >>sys.stderr, 'Cerrando socket'
+    client_sock.close()

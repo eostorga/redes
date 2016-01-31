@@ -1,41 +1,44 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
- 
-# Programa Servidor
-# Fuente original de este codigo: www.pythondiario.com
-# Utilizado para fines academicos en el curso CI-1320 
 
+# Programa Servidor
 import socket
 import sys
  
 # Creando el socket TCP/IP
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-# Enlace de socket y puerto
-server_address = ('localhost', 10000)
-print >>sys.stderr, 'empezando a levantar %s puerto %s' % server_address
-sock.bind(server_address)
+'''
+Argumentos en la linea de comandos
+python [0: servidor.py] [1: modo] [2: puerto_servidor]
+'''
+# Obtiene el numero de puerto donde escucha el servidor
+server_port = int(sys.argv[2])
+
+# Enlace de socket y el puerto del servidor
+server_address = ('localhost', server_port)
+print >>sys.stderr, 'Empezando a levantar %s en el puerto %s' % server_address
+server_sock.bind(server_address)
 
 # Escuchando conexiones entrantes
-sock.listen(1)
+server_sock.listen(1)
  
 while True:
     # Esperando conexion
     print >>sys.stderr, 'Esperando para conectarse'
-    connection, client_address = sock.accept()
+    connection, client_address = server_sock.accept()
  
     try:
-        print >>sys.stderr, 'concexion desde', client_address
+        print >>sys.stderr, 'Conexion desde', client_address
  
         # Recibe los datos en trozos y reetransmite
         while True:
             data = connection.recv(1000)
-            print >>sys.stderr, 'recibido "%s"' % data
             if data:
-                print >>sys.stderr, 'enviando mensaje de vuelta al cliente'
+                print >>sys.stderr, 'Recibido "%s"' % data
+                print >>sys.stderr, 'Enviando mensaje de vuelta al cliente'
                 connection.sendall(data)
             else:
-                print >>sys.stderr, 'no hay mas datos', client_address
+                print >>sys.stderr, 'No hay mas datos', client_address
                 break
              
     finally:
