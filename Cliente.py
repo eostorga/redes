@@ -25,8 +25,10 @@ try:
         message = file_to_send.read()
     file_to_send.close()
 
-    print >>sys.stderr, 'Enviando "%s"' % message
-    client_sock.sendall(message)
+    # Separa la string en un arreglo de caracteres y envia uno a uno al servidor
+    message_array = list(message)
+    for chart in range(0, len(message_array)):
+        client_sock.sendall(str(chart)+':'+message_array[chart]+'\n')
  
     # Buscando respuesta
     amount_received = 0
