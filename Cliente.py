@@ -7,7 +7,6 @@ import socket
 import sys
 import time
 import threading
-import signal
 
 # Variables globales
 window_size = int(sys.argv[4])
@@ -16,7 +15,7 @@ time_wait_mse = int(sys.argv[5])
 time_wait_sec = time_wait_mse / 1000
 # Window size <= sequence range/2
 # Range = [0,seq_range]
-seq_range = (window_size*2)
+seq_range = (window_size*2) + 1000
 base_seq_num = 0
 next_seq_num = 0
 count = 1
@@ -29,6 +28,7 @@ stop_timer = False
 to_send = True
 to_recv = True
 stop_clock = False
+mode = sys.argv[1]
 
 # Creando el socket TCP/IP para conectarse al intermediario
 client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -62,9 +62,11 @@ def resend():
     while resend < next_seq_num:
         segment = make_segment(resend, index)
         client_sock.sendall(segment)
-        print "Resending segment: \""+segment+"\"."
+        if mode == 'd':
+            print "Resending segment: \""+segment+"\"."
         resend += 1
         index += 1
+        time.sleep(0.1)
 
 def timer():
     secs = 0
@@ -76,7 +78,8 @@ def timer():
                 secs -= 1
             if secs == 0:
                 lock.acquire()
-                print "Oops, Time out!"
+                if mode == 'd':
+                    print "Oops, Time out!"
                 resend()
                 lock.release()
         elif stop_timer:
@@ -88,7 +91,7 @@ def send_packets():
     global start_timer
     global to_send
     # Envia solo la ventana
-    while next_seq_num < base_seq_num + window_size and count <= message_length:
+    if next_seq_num < base_seq_num + window_size and count <= message_length:
         lock.acquire()
         segment = make_segment(next_seq_num, count-1)
         client_sock.sendall(segment)
@@ -96,16 +99,19 @@ def send_packets():
             start_timer = True
         # Avanza al siguiente numero de secuencia
         next_seq_num = count % seq_range
-        print "Sending segment: \""+segment+"\"."
+        if mode == 'd':
+            print "Sending segment: \""+segment+"\"."+" Next seq num: "+str(next_seq_num)+". Base seq num: "+str(base_seq_num)
         if count == message_length:
             to_send = False
         count += 1
+        time.sleep(0.1)
         lock.release()
 
 def rdt_send():
     while to_send:
         send_packets()
-    print "No more new segments to send."
+    if mode == 'd':
+        print "No more new segments to send."
 
 def rdt_recv():
     global base_seq_num
@@ -119,28 +125,38 @@ def rdt_recv():
         if data:
             ack_number = int(data)
             acks_received += 1
-            print "Receiving ACK number: \""+str(ack_number)+"\"."
+            if mode == 'd':
+                print "Receiving ACK number: \""+str(ack_number)+"\"."
             base_seq_num = ack_number + 1
             if base_seq_num == next_seq_num:
                 stop_timer = True
             else:
                 start_timer = True
-        if acks_received == message_length - 1:
+        if acks_received == message_length:
             to_recv = False
+            stop_timer = True
             stop_clock = True
-    print "All segments sent already ACKed."
+    if mode == 'd':
+        print "All segments sent already ACKed."
 
 def main():
     open_file()
+    print "Sending your message..."
+    
     send_thread = threading.Thread(target=rdt_send)
     recv_thread = threading.Thread(target=rdt_recv)
     time_thread = threading.Thread(target=timer)
+    
     send_thread.start()
     recv_thread.start()
     time_thread.start()
+    
     send_thread.join()
     recv_thread.join()
     time_thread.join()
+    
+    segment = "-1"
+    client_sock.sendall(segment)
     print "Everything went OK! Your message has been successfully sent! :)"
     client_sock.close()
     print "Closing socket connection."
