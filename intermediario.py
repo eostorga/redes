@@ -6,7 +6,12 @@
 import socket
 import sys
 import time
- 
+import threading
+import random
+
+lock = threading.RLock()
+probability = int(sys.argv[4]) / 100
+
 # Creando el socket TCP/IP para escuchar al cliente
 iclent_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 # Creando el socket TCP/IP para conectarse al servidor
@@ -26,27 +31,47 @@ iservr_sock.connect(server_address)
 
 # Escuchando conexiones entrantes
 iclent_sock.listen(1)
- 
-while True:
-    # Esperando conexion
-    connection, client_address = iclent_sock.accept()
- 
-    try:
-        # Recibe los datos en trozos y reetransmite
-        while True:
-            data = connection.recv(1000)
-            if data:
-                print >>sys.stderr, 'Recibido "%s"' % data
-                iservr_sock.sendall(data)
-            else:
-                print >>sys.stderr, 'No hay mas datos', client_address
-                break
 
-            data_from_server = iservr_sock.recv(100)
-            if data_from_server:
-                print >>sys.stderr, 'Enviando mensaje de vuelta al cliente "%s"' % data_from_server
-                connection.sendall(data_from_server)
-             
-    finally:
-        # Cerrando conexion
-        connection.close()
+client_connection, client_address = iclent_sock.accept()
+
+def loss_segment():
+    return random.random() <= probability
+
+def to_server():
+    while True:
+        data = client_connection.recv(19)
+        if data:
+            lock.acquire()
+            print >>sys.stderr, 'Receiving segment: "%s"' % data
+            discard = loss_segment()
+            if discard:
+                print >>sys.stderr, 'Segment "%s" lost.' % data
+                lock.release()
+            elif not discard:
+                time.sleep(0.1)
+                print >>sys.stderr, 'Sending segment to server: "%s"' % data
+                iservr_sock.sendall(data)
+                lock.release()
+
+def to_client():
+    while True:
+        data_from_server = iservr_sock.recv(19)
+        if data_from_server:
+            lock.acquire()
+            time.sleep(0.1)
+            print >>sys.stderr, 'Sending ACK number "%s" back to the client.' % data_from_server
+            client_connection.sendall(data_from_server)
+            lock.release()
+
+def main():
+    send_thread = threading.Thread(target=to_server)
+    recv_thread = threading.Thread(target=to_client)
+    send_thread.start()
+    recv_thread.start()
+    send_thread.join()
+    recv_thread.join()
+    print "Closing connection."
+    client_connection.close
+
+if __name__ == "__main__":
+    main()
