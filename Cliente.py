@@ -66,7 +66,7 @@ def resend():
             print "Resending segment: \""+segment+"\"."
         resend += 1
         index += 1
-        time.sleep(0.1)
+        time.sleep(0.05)
 
 def timer():
     secs = 0
@@ -104,7 +104,7 @@ def send_packets():
         if count == message_length:
             to_send = False
         count += 1
-        time.sleep(0.1)
+        time.sleep(0.05)
         lock.release()
 
 def rdt_send():

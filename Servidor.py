@@ -30,23 +30,24 @@ while True:
         while True:
             data = connection.recv(19)
             if data:
-                if mode == 'd':
-                    print >>sys.stderr, 'Receiving segment: "%s".' % data
-                data = list(data)
                 try:
                     ack_num = int(data[0])
+                    if mode == 'd':
+                        print >>sys.stderr, 'Receiving segment: "%s".' % data
+                        data = list(data)
+                    if ack_num-1 == prev_ack:
+                        time.sleep(0.05)
+                        message_array.append(data[2])
+                        if mode == 'd':
+                            print >>sys.stderr, 'Sending ACK number: "%s".' % ack_num
+                        connection.sendall(str(ack_num))
+                        prev_ack = ack_num
                 except ValueError:
                     message = ''.join(message_array)
-                    print >>sys.stderr, "Message received: '%s'" % message
-                if ack_num-1 == prev_ack:
-                    time.sleep(0.1)
-                    message_array.append(data[2])
-                    if mode == 'd':
-                        print >>sys.stderr, 'Sending ACK number: "%s".' % ack_num
-                    connection.sendall(str(ack_num))
-                    prev_ack = ack_num
+                    print >>sys.stderr, 'Message received: "%s"' % message
             else:
-                print >>sys.stderr, 'No more data', client_address
+                if mode == 'd':
+                    print >>sys.stderr, 'No more data', client_address
                 break             
     finally:
         # Cerrando conexion
