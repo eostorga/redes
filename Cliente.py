@@ -37,7 +37,6 @@ port_number = int(sys.argv[3])
 # Conecta el socket en el puerto cuando el intermediario este escuchando
 interm_address = ('localhost', port_number)
 client_sock.connect(interm_address)
-#client_sock.settimeout(1)
 
 # Abre el archivo con el mensaje a enviar y lo guarda en un arreglo
 def open_file():
@@ -100,7 +99,7 @@ def send_packets():
         # Avanza al siguiente numero de secuencia
         next_seq_num = count % seq_range
         if mode == 'd':
-            print "Sending segment: \""+segment+"\"."+" Next seq num: "+str(next_seq_num)+". Base seq num: "+str(base_seq_num)
+            print "Sending segment: \""+segment+"\"."
         if count == message_length:
             to_send = False
         count += 1
