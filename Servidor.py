@@ -8,6 +8,16 @@ import sys
 import time
 import threading
 
+mode = sys.argv[1]
+prev_ack = -1
+ack_num = 0
+ack_aux = ''
+message_array = []
+message = ''
+message_to_write = ''
+more_from_client = True
+lock = threading.RLock()
+
 # Creando el socket TCP/IP
 server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -19,85 +29,59 @@ server_sock.bind(server_address)
 # Escuchando conexiones entrantes
 server_sock.listen(1)
 
-mode = sys.argv[1]
-prev_ack = -1
-ack_num = 0
-ack_aux = ''
-message_array = []
-message = ''
-message_to_write = ''
 interm_connection, interm_address = server_sock.accept()
-
-
-
 
 def open_file(str):
     global message
     global message_length
     with open('messageServer.txt','w') as file_to_write:
-		file_to_write.write( message) 
-		
+		file_to_write.write(message) 		
 		if mode == 'd':
-			
-			print "Escrbiendo datos en el archivo"	
+			print "Writing file..."	
 		
-
-def conexion():
-
+def connection():
 	global prev_ack
 	global message
 	global ack_num
 	global ack_aux
-	
-
+	global more_from_client
 	# Recibe los datos en trozos y reetransmite
-	while True:
+	while more_from_client:
 		data = interm_connection.recv(19)
 		if data:
-			if mode == 'd':
-				print >>sys.stderr, 'Receiving segment: "%s".' % data
-			data = list(data)
-			
+			data_array = list(data)
 			try:
 				x = 0
 				ack_aux = ''
-				while data[x] != ':':
-					
-					
-					ack_aux += data[x]
+				while data_array[x] != ':':
+					ack_aux += data_array[x]
 					ack_num = int(ack_aux)
 					x += 1
-
-				
-			
+				if mode == 'd':
+					print >>sys.stderr, 'Receiving segment: "%s".' % data
 			except ValueError:
 				message = ''.join(message_array)
 				print >>sys.stderr, "Message received: '%s'" % message
 				open_file(message)
-				
+				more_from_client = False
 			if ack_num-1 == prev_ack:
-				time.sleep(0.1)
-				
 				y = 0
-				while data[y] != ':':
+				while data_array[y] != ':':
 					y += 1 
-				if data[y+1] != '\n':	
-					message_array.append(data[y+1])
-				
+				if data_array[y+1] != '\n':	
+					message_array.append(data_array[y+1])
 				if mode == 'd':
-					print >>sys.stderr, "Arreglo %s" % message_array
-
-				
+					print >>sys.stderr, "Message: %s." % message_array
+				lock.acquire()
 				if mode == 'd':
 					print >>sys.stderr, 'Sending ACK number: "%s".' % ack_num
 				interm_connection.sendall(str(ack_num))
+				time.sleep(0.03)
+				lock.release()
 				prev_ack = ack_num
-	         
-	
-def main():
 
-	print "Recibiendo datos"
-	recv_thread = threading.Thread(target=conexion)
+def main():
+	recv_thread = threading.Thread(target=connection)
 	recv_thread.start()
 	recv_thread.join()
 	print "Closing connection."
@@ -106,7 +90,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-	
-
-		
